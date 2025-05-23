@@ -15,7 +15,7 @@
 CXX=${SDKTARGETSYSROOT}/x86_64/usr/bin/aarch64-qcom-linux/aarch64-qcom-linux-g++
 
 SOURCES = \
-        main.cc
+        gst-video-compositor.cc
 INCLUDES += -I ${SDKTARGETSYSROOT}/${MACHINE}/usr/include
 INCLUDES += -I ${SDKTARGETSYSROOT}/${MACHINE}/usr/include/glib-2.0
 INCLUDES += -I ${SDKTARGETSYSROOT}/${MACHINE}/usr/lib/glib-2.0/include
