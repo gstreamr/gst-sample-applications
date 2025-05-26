@@ -7,7 +7,7 @@ Sample applications for Qualcomm® Linux repository provide sample applications 
 
 Note: qcom-wayland-x86_64-qcom-multimedia-image-armv8-2a-<machine>-toolchain-ext-1.3-ver.1.1 is required to build sample applications.
 
-Follow these [build procedures](https://github.com/quic-yocto/meta-qcom-qim-product-sdk) to build the Qualcomm Intelligent Multimedia Product SDK (QIMP SDK).
+Follow these (https://docs.qualcomm.com/bundle/resource/topics/80-70018-75/build-the-software_3.html) document for build and compile QCS615.LE.1.0 source code.
 
 Run the following command from the build directory to generate the eSDK:
 
