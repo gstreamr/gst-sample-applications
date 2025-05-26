@@ -12,17 +12,22 @@
  * This application Demonstrates single USB camera usecases with below possible
  * output:
  *     --Live Camera Preview on Display
+ *     --Dump the Camera YUV to a file
  *
  * Usage:
  * Live Camera Preview on Display:
- * gst-usb-camera-app 0 -w 640 -h 480 -f 30 -F YUY2
+ * gst-usb-camera-example -o 0 -w 640 -h 480 -f 30 -F YUY2
+ * For YUV dump on device:
+ * gst-usb-camera-example -o 1 -w 640 -h 480 -f 30 -F YUY2
  *
  * Help:
- * gst-usb-camera-app --help
+ * gst-usb-camera-example --help
  *
  * *******************************************************************************
  * Live Camera Preview on Display:
- *     camerasrc, capsfilter, convert, waylandsink
+ *     camerasrc->capsfilter->convert->waylandsink
+ * Dump the Camera YUV to a filesink:
+ *     camerasrc->capsfilter->convert->filesink
  * *******************************************************************************
  */
 
@@ -33,31 +38,51 @@
 #include <stdarg.h>
 #include <glib-unix.h>
 
+#define DEFAULT_OP_YUV_FILENAME "/opt/yuv_dump%d.yuv"
 #define DEFAULT_WIDTH 640
 #define DEFAULT_HEIGHT 480
 #define DEFAULT_FRAMERATE 30
-#define YUY2 "YUY2"
-#define DEFAULT_FORMAT YUY2
+#define DEFAULT_FORMAT "YUY2"
 #define MAX_VID_DEV_CNT 64
 
 #define GST_APP_SUMMARY                                                       \
-  "This app enables users to use a single USB camera for video preview.\n"    \
+  "This app enables users to use a single USB camera for preview and YUV dump.\n" \
   "\nCommand:\n"                                                              \
   "For Preview on Display:\n"                                                 \
-  "  gst-usb-camera-app 0 -w 640 -h 480 -f 30 -F YUY2\n"                    \
+  "  gst_usb_camera_example -o 0 -w 640 -h 480 -f 30 -F YUY2\n"                    \
+  "For YUV dump:\n"                                                           \
+  "  gst_usb_camera_example -o 1 -w 640 -h 480 -f 30 -F YUY2\n"                    \
   "\nOutput:\n"                                                               \
-  "  Upon execution, the application will display the video output.\n"
+  "  Upon execution, application will generates output as user selected. \n"  \
+  "  In case of a preview, the output video will be displayed. \n"            \
+  "  In case YUV dump the output video stored at /opt/yuv_dump%d.yuv\n" \
 
+
+/**
+ * GstSinkType:
+ * @GST_WAYLANDSINK: Waylandsink Type.
+ * @GST_VIDEO_ENCODE : Video Encode Type.
+ * @GST_YUV_DUMP: YUV Filesink Type.
+ * @GST_RTSP_STREAMING : RTSP streaming Type.
+ * Type of App Sink.
+ */
+enum GstSinkType {
+  GST_WAYLANDSINK,
+  GST_YUV_DUMP,
+  GST_VIDEO_ENCODE,
+  GST_RTSP_STREAMING,
+};
   
 struct GstCameraAppCtx {
   GstElement *pipeline;
   GMainLoop *mloop;
-  gchar *output_file;
+  const gchar *output_file;
   gchar dev_video[16];
+  enum GstSinkType sinktype;
   gint width;
   gint height;
   gint framerate;
-  const gchar *format;
+  gchar *format;
 };
 typedef struct GstCameraAppCtx GstCameraAppContext;
 
@@ -210,7 +235,8 @@ gst_app_context_new ()
   ctx->width = DEFAULT_WIDTH;
   ctx->height = DEFAULT_HEIGHT;
   ctx->framerate = DEFAULT_FRAMERATE;
-  ctx->format = DEFAULT_FORMAT;
+  ctx->format = g_strdup(DEFAULT_FORMAT);
+  ctx->sinktype = GST_WAYLANDSINK;
   return ctx;
 }
 
@@ -318,7 +344,7 @@ static gboolean
 create_pipe (GstCameraAppContext * appctx)
 {
   // Declare the elements of the pipeline
-  GstElement *camerasrc, *capsfilter, *waylandsink, *convert;
+  GstElement *camerasrc, *capsfilter, *waylandsink, *convert, *filesink;
   GstCaps *filtercaps;
   gboolean ret = FALSE;
 
@@ -326,16 +352,14 @@ create_pipe (GstCameraAppContext * appctx)
   camerasrc = gst_element_factory_make ("v4l2src", "camerasrc");
   capsfilter = gst_element_factory_make ("capsfilter", "capsfilter");
   convert = gst_element_factory_make ("videoconvert", "convert");
-  waylandsink = gst_element_factory_make ("waylandsink", "waylandsink");
 
-  if (!camerasrc || !capsfilter || !convert || !waylandsink) {
+  if (!camerasrc || !capsfilter || !convert) {
     g_printerr ("\n Not all elements could be created. Exiting.\n");
     return FALSE;
   }
 
   // Set properties for element
   g_object_set (G_OBJECT (camerasrc), "device", appctx->dev_video, NULL);
-  g_object_set (G_OBJECT (waylandsink), "fullscreen", TRUE, NULL);
 
   // Set the source elements capability and in case YUV dump disable UBWC
   filtercaps = gst_caps_new_simple ("video/x-raw",
@@ -348,7 +372,16 @@ create_pipe (GstCameraAppContext * appctx)
   g_object_set (G_OBJECT (capsfilter), "caps", filtercaps, NULL);
   gst_caps_unref (filtercaps);
   
-  gst_bin_add_many (GST_BIN (appctx->pipeline), camerasrc, capsfilter,
+  // check the sink type and create the sink elements
+  if (appctx->sinktype == GST_WAYLANDSINK) {
+    waylandsink = gst_element_factory_make ("waylandsink", "waylandsink");
+    if (!waylandsink) {
+      g_printerr ("\n waylandsink element not created. Exiting.\n");
+      return FALSE;
+    }
+    g_object_set (G_OBJECT (waylandsink), "fullscreen", TRUE, NULL);
+
+    gst_bin_add_many (GST_BIN (appctx->pipeline), camerasrc, capsfilter,
         convert, waylandsink, NULL);
 
     g_print ("\n Link pipeline for display elements ..\n");
@@ -361,8 +394,33 @@ create_pipe (GstCameraAppContext * appctx)
           convert, waylandsink, NULL);
       return FALSE;
     }
+  } else if (appctx->sinktype == GST_YUV_DUMP) {
+    // set the output file location for filesink element
+    appctx->output_file = DEFAULT_OP_YUV_FILENAME;
+    filesink = gst_element_factory_make ("multifilesink", "filesink");
+    if (!filesink) {
+      g_printerr ("\n YUV dump elements could not be created. Exiting.\n");
+      return FALSE;
+    }
+    g_object_set (G_OBJECT (filesink), "location", appctx->output_file, NULL);
+    g_object_set (G_OBJECT (filesink), "enable-last-sample", FALSE, NULL);
+    g_object_set (G_OBJECT (filesink), "max-files", 2, NULL);
 
-  g_print ("\n All elements are linked successfully\n");
+    gst_bin_add_many (GST_BIN (appctx->pipeline), camerasrc, capsfilter,
+        convert, filesink, NULL);
+
+    g_print ("\n Link pipeline elements for yuv dump..\n");
+
+    ret = gst_element_link_many (camerasrc, capsfilter, convert, filesink,
+        NULL);
+    if (!ret) {
+      g_printerr ("\n Pipeline elements cannot be linked. Exiting.\n");
+      gst_bin_remove_many (GST_BIN (appctx->pipeline), camerasrc, capsfilter,
+          convert, filesink, NULL);
+      return FALSE;
+    }
+  } 
+    g_print ("\n All elements are linked successfully\n");
   return TRUE;
 }
 
@@ -398,6 +456,10 @@ main (gint argc, gchar *argv[])
       "camera framerate" },
     { "format", 'F', 0, G_OPTION_ARG_STRING, &appctx->format, "Format", 
       "Video format (e.g., NV12, YUY2)" },
+    { "output", 'o', 0, G_OPTION_ARG_INT, &appctx->sinktype,
+      "Sinktype"
+      "\n\t0-PREVIEW"
+      "\n\t1-YUVDUMP" },
     { NULL }
     };
 
