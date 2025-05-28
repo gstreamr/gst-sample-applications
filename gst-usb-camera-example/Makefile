@@ -13,6 +13,7 @@
 #Example: export GST_APP_NAME=gst-test-app
 
 CXX=${SDKTARGETSYSROOT}/x86_64/usr/bin/aarch64-qcom-linux/aarch64-qcom-linux-g++
+GST_APP_NAME=gst-usb-camera-example
 
 SOURCES = \
         gst-usb-camera-example.cc
