@@ -13,7 +13,7 @@
 #Example: export GST_APP_NAME=gst-test-app
 
 CXX=${SDKTARGETSYSROOT}/x86_64/usr/bin/aarch64-qcom-linux/aarch64-qcom-linux-g++
-GST_APP_NAME=gst-transcode-example
+GST_APP_NAME=gst-video-transcode-example
 
 SOURCES = \
         gst-transcode-example.cc
