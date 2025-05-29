@@ -36,4 +36,4 @@ ${TARGETS}: %:%.cc
         $(CXX) -Wall --sysroot=$(SDKTARGETSYSROOT)/${MACHINE} $(INCLUDES) $(LLIBS) $< -o $(GST_APP_NAME)
 
 clean:
-        rm -f ${TARGETS}
+        rm -f ${TARGETS} {GST_APP_NAME}
