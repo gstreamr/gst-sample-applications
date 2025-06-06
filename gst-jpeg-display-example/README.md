@@ -1,3 +1,4 @@
+# Below are the steps for compliation of Sample Application
 1. cd gst-sample-applications
 2. export SDKTARGETSYSROOT=<path to installation directory of platfom SDK>/tmp/sysroots
    e.g.: export SDKTARGETSYSROOT=/local/mnt/workspace/Platform_eSDK/tmp/sysroots
