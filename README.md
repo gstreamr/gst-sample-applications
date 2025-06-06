@@ -33,14 +33,3 @@ cd <installation directory of platfom SDK>
    source environment-setup-armv8-2a-qcom-linux
 
 3. git clone https://github.com/gstreamr/gst-sample-applications
-4. cd gst-sample-application
-5. export SDKTARGETSYSROOT=<path to installation directory of platfom SDK>/tmp/sysroots
-   e.g.: export SDKTARGETSYSROOT=/local/mnt/workspace/Platform_eSDK/tmp/sysroots
-
-6. export MACHINE=<machine>
-   e.g export MACHINE=qcs615-adp-air
-
-7. export GST_APP_NAME=<appname> 
-   e.g.: export GST_APP_NAME=gst-test-app
-8. Do run make
-9. Application executable will be generated and push the bin to target device and validate the usecase.
